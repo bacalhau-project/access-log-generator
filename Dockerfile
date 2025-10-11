@@ -42,4 +42,5 @@ EXPOSE 8080
 
 RUN uv run -s access-log-generator.py --exit
 
-CMD ["uv", "run", "-s", "access-log-generator.py"]
+ENTRYPOINT ["uv", "run", "-s", "access-log-generator.py"]
+CMD []
