@@ -29,12 +29,29 @@ success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
+# Function to get next semantic version
+get_next_version() {
+    local latest_tag
+    latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+    
+    # Remove 'v' prefix
+    latest_tag=${latest_tag#v}
+    
+    # Split into major.minor.patch
+    IFS='.' read -r major minor patch <<< "$latest_tag"
+    
+    # Increment minor version
+    minor=$((minor + 1))
+    
+    echo "v${major}.${minor}.0"
+}
+
 # Configuration with defaults
 PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 DOCKERFILE="${DOCKERFILE:-Dockerfile}"
 BUILDER_NAME="${BUILDER_NAME:-multiarch-builder}"
 REGISTRY="${REGISTRY:-ghcr.io}"
-VERSION_TAG="${VERSION_TAG:-$(date +"%y%m%d%H%M")}"
+VERSION_TAG="${VERSION_TAG:-$(get_next_version)}"
 SKIP_PUSH="${SKIP_PUSH:-false}"
 BUILD_CACHE="${BUILD_CACHE:-true}"
 REQUIRE_LOGIN="${REQUIRE_LOGIN:-true}"
@@ -189,11 +206,16 @@ print_usage() {
     echo "  IMAGE_NAME     : Name of the image (default: derived from directory name)"
     echo "  PLATFORMS      : Target platforms (default: linux/amd64,linux/arm64)"
     echo "  DOCKERFILE     : Path to Dockerfile (default: ./Dockerfile)"
-    echo "  VERSION_TAG    : Version tag (default: YYMMDDHHMM)"
-    echo "  REGISTRY       : Docker registry (default: docker.io)"
+    echo "  VERSION_TAG    : Version tag (default: auto-incremented semver, e.g., v2.0.0)"
+    echo "  REGISTRY       : Docker registry (default: ghcr.io)"
     echo "  SKIP_PUSH      : Skip pushing to registry (default: false)"
     echo "  BUILD_CACHE    : Use build cache (default: true)"
     echo "  REQUIRE_LOGIN  : Require Docker registry login (default: false)"
+    echo ""
+    echo "Examples:"
+    echo "  ./build.sh                    # Auto-increment minor version"
+    echo "  VERSION_TAG=v2.0.0 ./build.sh # Specific version"
+    echo "  SKIP_PUSH=true ./build.sh     # Build locally without pushing"
 }
 
 main() {
@@ -205,6 +227,7 @@ main() {
     fi
 
     log "Starting build process..."
+    log "Version: $VERSION_TAG"
     validate_requirements
     
     setup_builder
