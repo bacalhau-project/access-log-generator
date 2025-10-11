@@ -168,10 +168,22 @@ build_and_push_images() {
     
     log "Building for platforms: $platforms"
     
+    # Get git commit hash and build date
+    local git_commit="unknown"
+    local build_date
+    build_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        git_commit=$(git rev-parse --short HEAD)
+    fi
+    
     # Create the build_args array
     local build_args=(
         --platform "$platforms"
         --file "$DOCKERFILE"
+        --build-arg "VERSION=$VERSION_TAG"
+        --build-arg "GIT_COMMIT=$git_commit"
+        --build-arg "BUILD_DATE=$build_date"
     )
 
     # Add tags to build_args (splitting the string into separate arguments)
@@ -199,6 +211,9 @@ build_and_push_images() {
     fi
     
     success "Successfully built images for $platforms"
+    log "Version: $VERSION_TAG"
+    log "Git Commit: $git_commit"
+    log "Build Date: $build_date"
 }
 
 print_usage() {

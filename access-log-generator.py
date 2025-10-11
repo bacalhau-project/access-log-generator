@@ -36,8 +36,12 @@ import yaml
 from faker import Faker
 from flask import Flask, jsonify
 
+# Version information - injected at build time
+VERSION = os.environ.get("APP_VERSION", "dev")
+GIT_COMMIT = os.environ.get("GIT_COMMIT", "unknown")
+BUILD_DATE = os.environ.get("BUILD_DATE", "unknown")
 
-# Add this after the imports, before load_config()
+
 class SessionState:
     """State machine states for user sessions"""
 
@@ -1356,11 +1360,34 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
-    parser = argparse.ArgumentParser(description="Access Log Generator")
+    parser = argparse.ArgumentParser(
+        description="Access Log Generator - Generate realistic web server access logs",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                              # Use default config
+  %(prog)s config.yaml                  # Use specific config file
+  %(prog)s --log-dir-override /tmp/logs # Override log directory
+  %(prog)s --version                    # Show version information
+  
+Environment Variables:
+  LOG_GENERATOR_CONFIG_YAML_B64  Base64 encoded YAML config
+  LOG_GENERATOR_CONFIG_YAML      Plain text YAML config
+  LOG_GENERATOR_CONFIG_PATH      Path to config file
+  LOG_DIR_OVERRIDE               Override log directory
+  
+Health Check:
+  curl http://localhost:8080/health     # Check generator status
+  curl http://localhost:8080/ready      # Check readiness
+
+Documentation:
+  https://github.com/bacalhau-project/access-log-generator
+        """
+    )
     parser.add_argument(
         "config",
         type=str,
-        nargs="?",  # Make config optional
+        nargs="?",
         help="Path to configuration file (optional if using environment variables)",
     )
     parser.add_argument(
@@ -1368,7 +1395,11 @@ def main():
         type=str,
         help="Override the log directory specified in config",
     )
-
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        help="Show version information and exit",
+    )
     parser.add_argument(
         "--exit",
         action="store_true",
@@ -1376,6 +1407,17 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Handle version flag
+    if args.version:
+        print(f"Access Log Generator")
+        print(f"Version:     {VERSION}")
+        print(f"Git Commit:  {GIT_COMMIT}")
+        print(f"Build Date:  {BUILD_DATE}")
+        print(f"Python:      {sys.version.split()[0]}")
+        print(f"\nRepository:  https://github.com/bacalhau-project/access-log-generator")
+        print(f"Registry:    ghcr.io/bacalhau-project/access-log-generator")
+        return
 
     # Temporary list for messages before logger is fully initialized
     # Some messages from load_config (like which file is used) are generated there.
