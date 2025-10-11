@@ -1,0 +1,480 @@
+# Access Log Generator - Deployment Guide for LLMs
+
+## Overview
+Access Log Generator is a production-ready tool that generates realistic, configurable web server access logs for testing log processing pipelines, monitoring systems, and analytics platforms. It simulates authentic user behavior through a state machine design and supports rate limiting, traffic patterns, and log rotation.
+
+## Quick Start - Docker Deployment
+
+### Standard Deployment
+```bash
+# Create directory structure
+mkdir -p /opt/access-log-generator/{logs,config}
+cd /opt/access-log-generator
+
+# Run with Docker (recommended)
+docker run -d \
+  --name access-log-generator \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v /opt/access-log-generator/logs:/var/log/app \
+  -v /opt/access-log-generator/config:/app/config \
+  -e LOG_GENERATOR_CONFIG_PATH=/app/config/config.yaml \
+  ghcr.io/bacalhau-project/access-log-generator:latest
+
+# View logs
+docker logs -f access-log-generator
+
+# Check health
+curl http://localhost:8080/health
+```
+
+### Docker Compose Deployment
+```bash
+# Download docker-compose.yml
+curl -o docker-compose.yml https://raw.githubusercontent.com/bacalhau-project/access-log-generator/main/docker-compose.yml
+
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+## Configuration
+
+### Basic Configuration
+Create `/opt/access-log-generator/config/config.yaml`:
+
+```yaml
+output:
+  directory: /var/log/app
+  rate: 10  # Logs per second (base rate)
+  debug: false
+  pre_warm: false  # Set true to simulate 24h of historical data
+  health_check:
+    enabled: true
+    port: 8080
+  log_rotation:
+    enabled: true
+    max_size_mb: 1000
+    when: "h"  # hourly rotation
+    interval: 1
+    backup_count: 5
+    compress: true
+
+state_transitions:
+  START:
+    LOGIN: 0.7
+    DIRECT_ACCESS: 0.3
+  LOGIN:
+    BROWSING: 0.9
+    ABANDON: 0.1
+  DIRECT_ACCESS:
+    BROWSING: 0.8
+    LEAVE: 0.2
+  BROWSING:
+    LOGOUT: 0.4
+    ABANDON: 0.3
+    ERROR: 0.05
+    BROWSING: 0.25
+
+navigation:
+  home:
+    "/": 0.2
+    "/about": 0.3
+    "/products": 0.4
+    "/search": 0.1
+
+error_rates:
+  global_500_rate: 0.02
+  product_404_rate: 0.1
+  cart_abandonment_rate: 0.5
+
+session:
+  min_browsing_duration: 10
+  max_browsing_duration: 300
+  min_page_view_interval: 2
+  max_page_view_interval: 10
+
+traffic_patterns:
+  - time: "2-6"
+    multiplier: 0.1
+  - time: "6-9"
+    multiplier: 0.3
+  - time: "9-12"
+    multiplier: 0.7
+  - time: "12-15"
+    multiplier: 1.0
+  - time: "15-18"
+    multiplier: 0.8
+  - time: "18-21"
+    multiplier: 0.5
+  - time: "21-2"
+    multiplier: 0.2
+```
+
+### Environment Variables
+Alternative to config files:
+
+```bash
+# Base64 encoded YAML config
+export LOG_GENERATOR_CONFIG_YAML_B64="<base64-encoded-yaml>"
+
+# Plain YAML config
+export LOG_GENERATOR_CONFIG_YAML="<yaml-content>"
+
+# Config file path
+export LOG_GENERATOR_CONFIG_PATH="/path/to/config.yaml"
+
+# Log directory override
+export LOG_DIR_OVERRIDE="/custom/log/path"
+```
+
+## Health Check Endpoints
+
+The generator exposes HTTP endpoints for monitoring:
+
+### Health Check
+```bash
+curl http://localhost:8080/health
+```
+Response:
+```json
+{
+  "status": "healthy",
+  "uptime_seconds": 3600,
+  "total_logs_generated": 36000,
+  "output_directory": "/var/log/app",
+  "rate": 10
+}
+```
+
+### Readiness Check
+```bash
+curl http://localhost:8080/ready
+```
+Response:
+```json
+{
+  "status": "ready"
+}
+```
+
+## Log Formats
+
+### access.log (NCSA Combined Format)
+```
+192.168.1.100 - john_doe [10/Oct/2024:13:55:36 +0000] "GET /products HTTP/1.1" 200 2847 "https://example.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+```
+
+### error.log (Apache-style)
+```
+2024-10-10 13:55:36 - ERROR - Failed to connect to database
+```
+
+### system.log (Generator status)
+```
+2024-10-10 13:55:36 - INFO - Starting log generation. Logs will be written to: /var/log/app/access.log
+2024-10-10 13:55:36 - INFO - Health check server started on port 8080
+2024-10-10 13:55:36 - INFO - Disk space monitor started (min: 1.0GB, interval: 300s)
+```
+
+## Features
+
+### Traffic Simulation
+- **State Machine**: Realistic user behavior (login, browsing, abandonment, errors)
+- **Traffic Patterns**: Time-based multipliers for realistic daily patterns
+- **Rate Limiting**: Token bucket algorithm for precise rate control
+- **Pre-warming**: Generate historical data to simulate existing logs
+
+### Production Features
+- **Graceful Shutdown**: SIGTERM/SIGINT handlers flush logs cleanly
+- **Health Checks**: HTTP endpoints for Kubernetes/Docker health monitoring
+- **Log Rotation**: Size-based or time-based rotation with gzip compression
+- **Disk Space Monitoring**: Automatic cleanup of old logs when disk fills
+- **Thread-Safe**: Safe concurrent log writing
+
+### Configurable Behavior
+- **Error Rates**: Control frequency of 404, 500, and other HTTP errors
+- **Session Duration**: Configure min/max session length
+- **Page Navigation**: Weighted probabilities for user paths
+- **IP/User Agent**: Faker library generates realistic values
+
+## Operations
+
+### Scaling
+```bash
+# Increase rate in config.yaml
+output:
+  rate: 100  # 100 logs/second
+
+# Or override via environment
+docker run -d \
+  -e RATE_OVERRIDE=100 \
+  ...
+```
+
+### Monitoring
+```bash
+# View real-time logs
+docker logs -f access-log-generator
+
+# Check disk usage
+du -sh /opt/access-log-generator/logs/
+
+# Monitor health endpoint
+watch -n 5 'curl -s http://localhost:8080/health | jq'
+```
+
+### Kubernetes Deployment
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: access-log-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: access-log-generator
+  template:
+    metadata:
+      labels:
+        app: access-log-generator
+    spec:
+      containers:
+      - name: generator
+        image: ghcr.io/bacalhau-project/access-log-generator:latest
+        ports:
+        - containerPort: 8080
+          name: health
+        env:
+        - name: LOG_GENERATOR_CONFIG_PATH
+          value: /app/config/config.yaml
+        volumeMounts:
+        - name: logs
+          mountPath: /var/log/app
+        - name: config
+          mountPath: /app/config
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: logs
+        persistentVolumeClaim:
+          claimName: access-logs-pvc
+      - name: config
+        configMap:
+          name: access-log-generator-config
+```
+
+## Troubleshooting
+
+### No logs generated
+```bash
+# Check if container is running
+docker ps | grep access-log-generator
+
+# View container logs for errors
+docker logs access-log-generator
+
+# Verify configuration
+docker exec access-log-generator cat /app/config/config.yaml
+
+# Check disk space
+docker exec access-log-generator df -h
+```
+
+### High CPU usage
+```bash
+# Reduce rate in configuration
+# Check traffic pattern multipliers
+# Disable debug mode
+```
+
+### Disk filling up
+```bash
+# Enable log rotation
+# Adjust backup_count and max_size_mb
+# Set compress: true
+# Monitor with disk space checks
+```
+
+## Architecture
+
+### State Machine
+- START → LOGIN or DIRECT_ACCESS
+- LOGIN → BROWSING or ABANDON
+- BROWSING → Continue, LOGOUT, ABANDON, or ERROR
+- Terminal states: END
+
+### Components
+1. **AccessLogGenerator**: Main orchestrator
+2. **Token Bucket**: Rate limiting algorithm
+3. **Session Generator**: User session state machine
+4. **Disk Monitor**: Background thread for space management
+5. **Health Server**: Flask-based HTTP endpoint
+
+### Threading Model
+- Main thread: Log generation loop
+- Daemon thread: Disk space monitoring
+- Daemon thread: Health check HTTP server
+
+## Testing
+
+### Verify Installation
+```bash
+# Test basic functionality
+docker run --rm ghcr.io/bacalhau-project/access-log-generator:latest --exit
+
+# Generate sample logs
+docker run --rm \
+  -v $(pwd)/test-logs:/var/log/app \
+  ghcr.io/bacalhau-project/access-log-generator:latest
+
+# Validate log format
+head -1 test-logs/access.log
+```
+
+### Unit Tests
+```bash
+# Run all tests (excluding integration)
+pytest tests/ -v
+
+# Run specific test
+python -m unittest tests.test_access_log_generator.TestConfigValidation.test_valid_config -v
+
+# Run integration tests
+pytest tests/ -v -m integration
+```
+
+## Security Considerations
+
+- Runs as root in container (required for /var/log/app permissions)
+- No network access required (except health check port)
+- No secrets or credentials needed
+- Generates synthetic data only
+- Health check server binds to 0.0.0.0 (configure firewall appropriately)
+
+## Performance
+
+- **Throughput**: Tested up to 1000 logs/second per container
+- **Memory**: ~50-100MB typical usage
+- **CPU**: ~5-10% per core at 100 logs/second
+- **Disk I/O**: Depends on rate and rotation settings
+- **Startup Time**: <5 seconds (40s with pre-warm enabled)
+
+## Version Information
+
+- Python: 3.11+
+- Dependencies: faker, pytz, pyyaml, flask
+- Docker: Multi-arch (amd64, arm64)
+- License: Open source
+
+## Support
+
+- GitHub: https://github.com/bacalhau-project/access-log-generator
+- Issues: https://github.com/bacalhau-project/access-log-generator/issues
+- Registry: ghcr.io/bacalhau-project/access-log-generator
+
+## Integration Examples
+
+### With Fluent Bit
+```bash
+# Tail access logs and forward to Elasticsearch
+docker run -d \
+  --name fluent-bit \
+  -v /opt/access-log-generator/logs:/logs:ro \
+  fluent/fluent-bit:latest \
+  -i tail -p path=/logs/access.log \
+  -o es -p Host=elasticsearch
+```
+
+### With Promtail/Loki
+```yaml
+scrape_configs:
+  - job_name: access-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: access-log-generator
+          __path__: /opt/access-log-generator/logs/access.log
+```
+
+### With Filebeat
+```yaml
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /opt/access-log-generator/logs/access.log
+    fields:
+      service: access-log-generator
+```
+
+## Advanced Configuration
+
+### Custom Status Codes
+```yaml
+status_codes:
+  success: 200
+  not_found: 404
+  server_error: 500
+  forbidden: 403
+  unauthorized: 401
+  redirect_permanent: 301
+  redirect_temporary: 302
+```
+
+### High-Error Pages
+```yaml
+error_rates:
+  global_500_rate: 0.02
+  high_error_pages:
+    - path: "/products?categoryID=4"
+      error_rate: 0.3
+    - path: "/checkout"
+      error_rate: 0.1
+```
+
+### Custom User Agents
+```yaml
+user_agents:
+  desktop:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"
+  mobile:
+    - "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6) Safari/604.1"
+```
+
+---
+
+**Quick Reference Commands:**
+```bash
+# Deploy
+docker run -d --name access-log-generator -p 8080:8080 -v /opt/logs:/var/log/app ghcr.io/bacalhau-project/access-log-generator:latest
+
+# Health check
+curl http://localhost:8080/health
+
+# View logs
+docker logs -f access-log-generator
+
+# Stop gracefully
+docker stop access-log-generator
+
+# Remove
+docker rm access-log-generator
+```

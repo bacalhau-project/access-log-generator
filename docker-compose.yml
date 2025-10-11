@@ -1,0 +1,19 @@
+services:
+  access-log-generator:
+    image: ghcr.io/bacalhau-project/access-log-generator:latest
+    pull_policy: always
+    container_name: access-log-generator
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./logs:/var/log/app
+      - ./config:/app/config
+    environment:
+      - LOG_GENERATOR_CONFIG_PATH=/app/config/docker-config.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

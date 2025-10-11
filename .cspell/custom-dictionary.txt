@@ -1,0 +1,17 @@
+bacalhau
+bacalhauproject
+buildcache
+buildx
+dateutil
+iniconfig
+levelname
+mult
+multiarch
+numpy
+pluggy
+pytest
+pytz
+pyyaml
+setuptools
+venv
+YYMMDDHHMM
