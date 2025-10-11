@@ -1,7 +1,12 @@
 # Access Log Generator - Deployment Guide for LLMs
 
 ## Overview
-Access Log Generator is a production-ready tool that generates realistic, configurable web server access logs for testing log processing pipelines, monitoring systems, and analytics platforms. It simulates authentic user behavior through a state machine design and supports rate limiting, traffic patterns, and log rotation.
+Access Log Generator v2.0.0+ is a production-ready tool that generates realistic, configurable web server access logs for testing log processing pipelines, monitoring systems, and analytics platforms. It simulates authentic user behavior through a state machine design and supports rate limiting, traffic patterns, log rotation, health checks, and graceful shutdown.
+
+**Latest Version**: v2.0.0  
+**Repository**: https://github.com/bacalhau-project/access-log-generator  
+**Registry**: ghcr.io/bacalhau-project/access-log-generator  
+**CI/CD**: Automated multi-arch builds (amd64, arm64) via GitHub Actions
 
 ## Quick Start - Docker Deployment
 
@@ -21,11 +26,20 @@ docker run -d \
   -e LOG_GENERATOR_CONFIG_PATH=/app/config/config.yaml \
   ghcr.io/bacalhau-project/access-log-generator:latest
 
-# View logs
+# Check version
+docker run --rm ghcr.io/bacalhau-project/access-log-generator:latest --version
+
+# View help
+docker run --rm ghcr.io/bacalhau-project/access-log-generator:latest --help
+
+# View container logs
 docker logs -f access-log-generator
 
-# Check health
+# Check health endpoint
 curl http://localhost:8080/health
+
+# Check readiness
+curl http://localhost:8080/ready
 ```
 
 ### Docker Compose Deployment
@@ -461,20 +475,178 @@ user_agents:
 
 ---
 
-**Quick Reference Commands:**
+## Quick Reference Commands
+
+### Essential Commands
 ```bash
+# Check version
+docker run --rm ghcr.io/bacalhau-project/access-log-generator:v2.0.0 --version
+
+# Get help
+docker run --rm ghcr.io/bacalhau-project/access-log-generator:v2.0.0 --help
+
 # Deploy
-docker run -d --name access-log-generator -p 8080:8080 -v /opt/logs:/var/log/app ghcr.io/bacalhau-project/access-log-generator:latest
+docker run -d \
+  --name access-log-generator \
+  -p 8080:8080 \
+  -v /opt/logs:/var/log/app \
+  ghcr.io/bacalhau-project/access-log-generator:v2.0.0
 
 # Health check
 curl http://localhost:8080/health
 
+# Readiness check
+curl http://localhost:8080/ready
+
 # View logs
 docker logs -f access-log-generator
 
-# Stop gracefully
+# Stop gracefully (SIGTERM handler flushes logs)
 docker stop access-log-generator
 
 # Remove
 docker rm access-log-generator
 ```
+
+### Available Tags
+```bash
+# Specific version
+ghcr.io/bacalhau-project/access-log-generator:v2.0.0
+
+# Major.minor version
+ghcr.io/bacalhau-project/access-log-generator:v2.0
+
+# Major version
+ghcr.io/bacalhau-project/access-log-generator:v2
+
+# Latest (tracks main branch)
+ghcr.io/bacalhau-project/access-log-generator:latest
+
+# Git commit SHA
+ghcr.io/bacalhau-project/access-log-generator:2429aee
+```
+
+## Version Information
+
+Access Log Generator v2.0.0 includes:
+
+- **Graceful Shutdown**: SIGTERM/SIGINT handlers properly flush logs before exit
+- **Health Checks**: HTTP endpoints on port 8080 for monitoring and orchestration
+- **Version Command**: `--version` flag shows build info (version, git commit, build date)
+- **Enhanced Help**: `--help` flag with examples and documentation links
+- **CI/CD Pipeline**: Automated builds via GitHub Actions on push and tag
+- **Multi-arch Support**: Native amd64 and arm64 images
+- **Auto-versioning**: Build script auto-increments semantic versions
+
+### Using Version Command
+```bash
+# Check version
+docker run --rm ghcr.io/bacalhau-project/access-log-generator:v2.0.0 --version
+
+# Output:
+# Access Log Generator
+# Version:     v2.0.0
+# Git Commit:  2429aee
+# Build Date:  2025-10-11T17:24:57Z
+# Python:      3.12.12
+#
+# Repository:  https://github.com/bacalhau-project/access-log-generator
+# Registry:    ghcr.io/bacalhau-project/access-log-generator
+```
+
+## Development & Releases
+
+### Building Locally
+```bash
+# Clone repository
+git clone https://github.com/bacalhau-project/access-log-generator.git
+cd access-log-generator
+
+# Build with auto-incrementing version (detects latest tag)
+./build.sh
+
+# Build specific version
+VERSION_TAG=v2.1.0 ./build.sh
+
+# Build without pushing
+SKIP_PUSH=true ./build.sh
+```
+
+### Creating Releases
+Releases are automated via GitHub Actions:
+
+```bash
+# Create and push a tag
+git tag -a v2.1.0 -m "Release v2.1.0"
+git push origin v2.1.0
+
+# GitHub Actions will:
+# 1. Build multi-arch images
+# 2. Tag: v2.1.0, v2.1, v2, latest
+# 3. Create GitHub Release with changelog
+# 4. Push to ghcr.io
+```
+
+### CI/CD Workflows
+
+**Automatic Triggers:**
+- Push to `main` → builds `latest` tag
+- Push tag `v*` → builds versioned release
+- Pull request → builds and tests (no push)
+
+**Manual Trigger:**
+```bash
+# Trigger workflow manually
+gh workflow run release.yml -f version=v2.1.0
+```
+
+## Security Notes
+
+- Container runs as root (required for `/var/log/app` permissions)
+- No secrets or credentials needed for normal operation
+- Generates synthetic data only
+- Health check server binds to `0.0.0.0:8080` (configure firewall as needed)
+- GitHub Push Protection prevents accidental secret commits
+
+## Troubleshooting
+
+### Container won't start
+```bash
+# Check logs
+docker logs access-log-generator
+
+# Verify config
+docker run --rm -v $(pwd)/config:/app/config \
+  ghcr.io/bacalhau-project/access-log-generator:v2.0.0 \
+  cat /app/config/config.yaml
+```
+
+### Health check failing
+```bash
+# Test health endpoint
+curl -v http://localhost:8080/health
+
+# Check if port is exposed
+docker port access-log-generator
+```
+
+### Version shows "dev"
+```bash
+# Rebuild with version args
+docker build \
+  --build-arg VERSION=v2.0.0 \
+  --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) \
+  --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+  -t access-log-generator:v2.0.0 .
+```
+
+## Support & Contributing
+
+- **Issues**: https://github.com/bacalhau-project/access-log-generator/issues
+- **Discussions**: https://github.com/bacalhau-project/access-log-generator/discussions
+- **CI/CD Status**: https://github.com/bacalhau-project/access-log-generator/actions
+- **Container Registry**: https://github.com/bacalhau-project/access-log-generator/pkgs/container/access-log-generator
+
+## License
+
+Open source project by Bacalhau Project.
