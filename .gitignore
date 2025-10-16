@@ -6,3 +6,6 @@ config/config.yaml
 __pycache__
 
 *.env*
+
+.cursor**
+.specstory**

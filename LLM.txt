@@ -3,9 +3,9 @@
 ## Overview
 Access Log Generator v2.0.0+ is a production-ready tool that generates realistic, configurable web server access logs for testing log processing pipelines, monitoring systems, and analytics platforms. It simulates authentic user behavior through a state machine design and supports rate limiting, traffic patterns, log rotation, health checks, and graceful shutdown.
 
-**Latest Version**: v2.0.0  
-**Repository**: https://github.com/bacalhau-project/access-log-generator  
-**Registry**: ghcr.io/bacalhau-project/access-log-generator  
+**Latest Version**: v2.0.0
+**Repository**: https://github.com/bacalhau-project/access-log-generator
+**Registry**: ghcr.io/bacalhau-project/access-log-generator
 **CI/CD**: Automated multi-arch builds (amd64, arm64) via GitHub Actions
 
 ## Quick Start - Docker Deployment

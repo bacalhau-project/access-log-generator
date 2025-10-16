@@ -81,8 +81,14 @@ access-log-generator config/config.yaml
 
 ### Build the container:
 ```bash
-# Multi-platform build (AMD64 and ARM64)
+# Development build (creates v2.0.0-dev.abc123)
 ./build.sh
+
+# Local build without pushing
+SKIP_PUSH=true ./build.sh
+
+# For creating releases, see RELEASE.md
+./release.sh 2.1.0
 ```
 
 ## 📝 Configuration
@@ -90,7 +96,7 @@ access-log-generator config/config.yaml
 The generator uses a comprehensive YAML configuration. Configuration can be provided via:
 
 1. Base64-encoded YAML in `LOG_GENERATOR_CONFIG_YAML_B64` env var
-2. Direct YAML in `LOG_GENERATOR_CONFIG_YAML` env var  
+2. Direct YAML in `LOG_GENERATOR_CONFIG_YAML` env var
 3. File path in `LOG_GENERATOR_CONFIG_PATH` env var
 4. Command-line argument
 5. Default: `config/config.yaml`
@@ -147,7 +153,7 @@ error_rates:
 traffic_patterns:
   hourly:
     "0-6": 0.1             # Night: 10% traffic
-    "6-9": 0.8             # Morning: 80% traffic  
+    "6-9": 0.8             # Morning: 80% traffic
     "9-17": 1.0            # Work day: 100% traffic
     "17-22": 0.6           # Evening: 60% traffic
     "22-24": 0.3           # Late night: 30% traffic
@@ -169,7 +175,7 @@ Apache-style error format for 4xx/5xx responses:
 [Thu Oct 10 13:55:36.123456 2024] [error] [client 192.168.1.100] File does not exist: /var/www/html/favicon.ico
 ```
 
-### 3. System Log (`system.log`)  
+### 3. System Log (`system.log`)
 Internal generator status and session tracking:
 ```
 2024-10-10T13:55:36.123456Z INFO session_manager New session started: session_id=abc123
@@ -242,6 +248,30 @@ python -m coverage report
 python -m unittest tests.test_access_log_generator.TestNCSALogFormat -v
 ```
 
+### Pre-commit Hooks
+
+Set up pre-commit hooks to catch linting issues before CI/CD:
+
+```bash
+# Install dev dependencies (includes pre-commit)
+uv pip install -e ".[dev]"
+
+# Install the git hooks
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
+
+# Now hooks run automatically on git commit
+```
+
+The pre-commit hooks will:
+- Fix trailing whitespace
+- Ensure files end with newline
+- Check YAML syntax
+- Run ruff linting and formatting
+- Prevent large files from being committed
+
 ### Test Coverage
 
 The test suite includes:
@@ -274,7 +304,7 @@ tail -f access.log | goaccess -
 ### State Machine
 The generator uses a sophisticated state machine to simulate realistic user behavior:
 - **START** → LOGIN (70%) or DIRECT_ACCESS (30%)
-- **LOGIN** → BROWSING (90%) or ABANDON (10%)  
+- **LOGIN** → BROWSING (90%) or ABANDON (10%)
 - **BROWSING** → Continue browsing, logout, abandon, or error
 - **ERROR/ABANDON/LOGOUT** → END
 
@@ -286,9 +316,28 @@ Token bucket algorithm ensures precise log generation rates with configurable tr
 - Realistic session durations (30s - 5min default)
 - Page view intervals (2-10s default)
 
+## 📜 License
+
+MIT License - feel free to use in your projects!
 ## 🤝 Contributing
 
-Contributions welcome! Feel free to:
+Contributions welcome! See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for development setup.
+
+**Quick Start**:
+```bash
+# Clone and install with dev dependencies
+git clone https://github.com/bacalhau-project/access-log-generator.git
+cd access-log-generator
+uv pip install -e ".[dev]"
+
+# Install pre-commit hooks (catches linting issues before CI/CD)
+pre-commit install
+
+# Make changes, then commit (hooks run automatically)
+git commit -m "Your changes"
+```
+
+Feel free to:
 - Open issues for bugs or feature requests
 - Submit pull requests
 - Share your use cases
@@ -296,4 +345,4 @@ Contributions welcome! Feel free to:
 
 ## 📜 License
 
-MIT License - feel free to use in your projects! 
+MIT License - feel free to use in your projects!

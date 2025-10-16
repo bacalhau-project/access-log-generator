@@ -512,8 +512,12 @@ class AccessLogGenerator:
         self.shutdown_flag = threading.Event()
         self.start_time = datetime.now()
         self.total_logs_generated = 0
-        self.health_check_enabled = config["output"].get("health_check", {}).get("enabled", False)
-        self.health_check_port = config["output"].get("health_check", {}).get("port", 8080)
+        self.health_check_enabled = (
+            config["output"].get("health_check", {}).get("enabled", False)
+        )
+        self.health_check_port = (
+            config["output"].get("health_check", {}).get("port", 8080)
+        )
 
         # Initialize Faker and user pool
         self.faker = Faker()
@@ -1312,31 +1316,35 @@ class AccessLogGenerator:
         """Start a simple health check HTTP server"""
         app = Flask(__name__)
         app.logger.disabled = True
-        log = logging.getLogger('werkzeug')
+        log = logging.getLogger("werkzeug")
         log.disabled = True
 
-        @app.route('/health')
+        @app.route("/health")
         def health():
             uptime = (datetime.now() - self.start_time).total_seconds()
-            return jsonify({
-                'status': 'healthy',
-                'uptime_seconds': uptime,
-                'total_logs_generated': self.total_logs_generated,
-                'output_directory': str(self.output_dir),
-                'rate': self.rate
-            })
+            return jsonify(
+                {
+                    "status": "healthy",
+                    "uptime_seconds": uptime,
+                    "total_logs_generated": self.total_logs_generated,
+                    "output_directory": str(self.output_dir),
+                    "rate": self.rate,
+                }
+            )
 
-        @app.route('/ready')
+        @app.route("/ready")
         def ready():
-            return jsonify({'status': 'ready'})
+            return jsonify({"status": "ready"})
 
         def run_server():
-            app.run(host='0.0.0.0', port=self.health_check_port, threaded=True)
+            app.run(host="0.0.0.0", port=self.health_check_port, threaded=True)
 
         health_thread = threading.Thread(target=run_server, daemon=True)
         health_thread.start()
         system_logger = self.loggers["system"]
-        system_logger.info(f"Health check server started on port {self.health_check_port}")
+        system_logger.info(
+            f"Health check server started on port {self.health_check_port}"
+        )
 
 
 def main():
@@ -1347,7 +1355,9 @@ def main():
         if generator:
             system_logger = generator.loggers.get("system")
             if system_logger:
-                system_logger.info(f"Received signal {signum}, initiating graceful shutdown...")
+                system_logger.info(
+                    f"Received signal {signum}, initiating graceful shutdown..."
+                )
             generator.shutdown_flag.set()
         else:
             print("Received shutdown signal, exiting...")
@@ -1365,20 +1375,20 @@ Examples:
   %(prog)s config.yaml                  # Use specific config file
   %(prog)s --log-dir-override /tmp/logs # Override log directory
   %(prog)s --version                    # Show version information
-  
+
 Environment Variables:
   LOG_GENERATOR_CONFIG_YAML_B64  Base64 encoded YAML config
   LOG_GENERATOR_CONFIG_YAML      Plain text YAML config
   LOG_GENERATOR_CONFIG_PATH      Path to config file
   LOG_DIR_OVERRIDE               Override log directory
-  
+
 Health Check:
   curl http://localhost:8080/health     # Check generator status
   curl http://localhost:8080/ready      # Check readiness
 
 Documentation:
   https://github.com/bacalhau-project/access-log-generator
-        """
+        """,
     )
     parser.add_argument(
         "config",
@@ -1406,13 +1416,13 @@ Documentation:
 
     # Handle version flag
     if args.version:
-        print(f"Access Log Generator")
+        print("Access Log Generator")
         print(f"Version:     {VERSION}")
         print(f"Git Commit:  {GIT_COMMIT}")
         print(f"Build Date:  {BUILD_DATE}")
         print(f"Python:      {sys.version.split()[0]}")
-        print(f"\nRepository:  https://github.com/bacalhau-project/access-log-generator")
-        print(f"Registry:    ghcr.io/bacalhau-project/access-log-generator")
+        print("\nRepository:  https://github.com/bacalhau-project/access-log-generator")
+        print("Registry:    ghcr.io/bacalhau-project/access-log-generator")
         return
 
     # Temporary list for messages before logger is fully initialized

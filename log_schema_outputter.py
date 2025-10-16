@@ -21,21 +21,21 @@ def get_ncsa_log_schema() -> Dict[str, Any]:
                 "symbol": "%h",
                 "type": "string",
                 "description": "Remote hostname or IP address",
-                "example": "192.168.1.100"
+                "example": "192.168.1.100",
             },
             {
                 "name": "remote_logname",
                 "symbol": "%l",
                 "type": "string",
                 "description": "Remote logname (always '-' in practice)",
-                "example": "-"
+                "example": "-",
             },
             {
                 "name": "remote_user",
                 "symbol": "%u",
                 "type": "string",
                 "description": "Authenticated username or '-' if not authenticated",
-                "example": "john_doe"
+                "example": "john_doe",
             },
             {
                 "name": "timestamp",
@@ -43,7 +43,7 @@ def get_ncsa_log_schema() -> Dict[str, Any]:
                 "type": "string",
                 "format": "[dd/MMM/yyyy:HH:mm:ss ±HHMM]",
                 "description": "Timestamp in NCSA format",
-                "example": "[10/Oct/2024:13:55:36 +0000]"
+                "example": "[10/Oct/2024:13:55:36 +0000]",
             },
             {
                 "name": "request_line",
@@ -51,7 +51,7 @@ def get_ncsa_log_schema() -> Dict[str, Any]:
                 "type": "string",
                 "format": "METHOD URI PROTOCOL",
                 "description": "Complete request line",
-                "example": "GET /index.html HTTP/1.1"
+                "example": "GET /index.html HTTP/1.1",
             },
             {
                 "name": "status_code",
@@ -70,32 +70,32 @@ def get_ncsa_log_schema() -> Dict[str, Any]:
                     "404": "Not Found",
                     "500": "Internal Server Error",
                     "502": "Bad Gateway",
-                    "503": "Service Unavailable"
-                }
+                    "503": "Service Unavailable",
+                },
             },
             {
                 "name": "response_size",
                 "symbol": "%b",
                 "type": "integer",
                 "description": "Size of response in bytes (excluding headers)",
-                "example": 2048
+                "example": 2048,
             },
             {
                 "name": "referer",
                 "symbol": "%{Referer}i",
                 "type": "string",
                 "description": "Referring URL or '-' if none",
-                "example": "http://www.example.com/start.html"
+                "example": "http://www.example.com/start.html",
             },
             {
                 "name": "user_agent",
                 "symbol": "%{User-agent}i",
                 "type": "string",
                 "description": "User agent string",
-                "example": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
+                "example": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            },
         ],
-        "example_line": '192.168.1.100 - john_doe [10/Oct/2024:13:55:36 +0000] "GET /products/laptop HTTP/1.1" 200 5432 "http://www.example.com/index.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"'
+        "example_line": '192.168.1.100 - john_doe [10/Oct/2024:13:55:36 +0000] "GET /products/laptop HTTP/1.1" 200 5432 "http://www.example.com/index.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"',
     }
 
 
@@ -111,7 +111,7 @@ def get_error_log_schema() -> Dict[str, Any]:
                 "type": "string",
                 "format": "DDD MMM dd HH:mm:ss.uuuuuu YYYY",
                 "description": "Timestamp of the error",
-                "example": "Thu Oct 10 13:55:36.123456 2024"
+                "example": "Thu Oct 10 13:55:36.123456 2024",
             },
             {
                 "name": "log_level",
@@ -119,24 +119,33 @@ def get_error_log_schema() -> Dict[str, Any]:
                 "type": "string",
                 "description": "Log level/severity",
                 "example": "error",
-                "values": ["debug", "info", "notice", "warn", "error", "crit", "alert", "emerg"]
+                "values": [
+                    "debug",
+                    "info",
+                    "notice",
+                    "warn",
+                    "error",
+                    "crit",
+                    "alert",
+                    "emerg",
+                ],
             },
             {
                 "name": "client_address",
                 "symbol": "%a",
                 "type": "string",
                 "description": "Client IP address",
-                "example": "192.168.1.100"
+                "example": "192.168.1.100",
             },
             {
                 "name": "message",
                 "symbol": "%M",
                 "type": "string",
                 "description": "Error message",
-                "example": "File does not exist: /var/www/html/favicon.ico"
-            }
+                "example": "File does not exist: /var/www/html/favicon.ico",
+            },
         ],
-        "example_line": "[Thu Oct 10 13:55:36.123456 2024] [error] [client 192.168.1.100] File does not exist: /var/www/html/favicon.ico"
+        "example_line": "[Thu Oct 10 13:55:36.123456 2024] [error] [client 192.168.1.100] File does not exist: /var/www/html/favicon.ico",
     }
 
 
@@ -150,29 +159,29 @@ def get_system_log_schema() -> Dict[str, Any]:
                 "type": "string",
                 "format": "ISO 8601",
                 "description": "Timestamp in ISO format",
-                "example": "2024-10-10T13:55:36.123456Z"
+                "example": "2024-10-10T13:55:36.123456Z",
             },
             {
                 "name": "level",
                 "type": "string",
                 "description": "Log level",
                 "example": "INFO",
-                "values": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+                "values": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
             },
             {
                 "name": "component",
                 "type": "string",
                 "description": "System component",
-                "example": "session_manager"
+                "example": "session_manager",
             },
             {
                 "name": "message",
                 "type": "string",
                 "description": "Log message",
-                "example": "New session started: session_id=abc123"
-            }
+                "example": "New session started: session_id=abc123",
+            },
         ],
-        "example_line": "2024-10-10T13:55:36.123456Z INFO session_manager New session started: session_id=abc123"
+        "example_line": "2024-10-10T13:55:36.123456Z INFO session_manager New session started: session_id=abc123",
     }
 
 
@@ -185,15 +194,15 @@ def get_all_schemas() -> Dict[str, Any]:
         "metadata": {
             "generator": "access-log-generator",
             "version": "1.0.0",
-            "description": "Realistic web server log generator for testing and development"
-        }
+            "description": "Realistic web server log generator for testing and development",
+        },
     }
 
 
 def output_schemas(format: str = "json") -> str:
     """Output schemas in specified format"""
     schemas = get_all_schemas()
-    
+
     if format == "json":
         return json.dumps(schemas, indent=2)
     elif format == "yaml":
@@ -208,9 +217,11 @@ def generate_markdown_documentation(schemas: Dict[str, Any]) -> str:
     """Generate markdown documentation for log schemas"""
     md = []
     md.append("# Log Format Schemas\n")
-    md.append(f"Generated by {schemas['metadata']['generator']} v{schemas['metadata']['version']}\n")
+    md.append(
+        f"Generated by {schemas['metadata']['generator']} v{schemas['metadata']['version']}\n"
+    )
     md.append(f"{schemas['metadata']['description']}\n")
-    
+
     # Access Log Schema
     if "access_log" in schemas:
         schema = schemas["access_log"]
@@ -220,9 +231,11 @@ def generate_markdown_documentation(schemas: Dict[str, Any]) -> str:
         md.append("| Field | Symbol | Type | Description | Example |")
         md.append("|-------|--------|------|-------------|---------|")
         for field in schema["fields"]:
-            md.append(f"| {field['name']} | {field['symbol']} | {field['type']} | {field['description']} | {field.get('example', 'N/A')} |")
+            md.append(
+                f"| {field['name']} | {field['symbol']} | {field['type']} | {field['description']} | {field.get('example', 'N/A')} |"
+            )
         md.append(f"\n**Example:** `{schema['example_line']}`\n")
-    
+
     # Error Log Schema
     if "error_log" in schemas:
         schema = schemas["error_log"]
@@ -232,9 +245,11 @@ def generate_markdown_documentation(schemas: Dict[str, Any]) -> str:
         md.append("| Field | Symbol | Type | Description | Example |")
         md.append("|-------|--------|------|-------------|---------|")
         for field in schema["fields"]:
-            md.append(f"| {field['name']} | {field['symbol']} | {field['type']} | {field['description']} | {field.get('example', 'N/A')} |")
+            md.append(
+                f"| {field['name']} | {field['symbol']} | {field['type']} | {field['description']} | {field.get('example', 'N/A')} |"
+            )
         md.append(f"\n**Example:** `{schema['example_line']}`\n")
-    
+
     # System Log Schema
     if "system_log" in schemas:
         schema = schemas["system_log"]
@@ -243,31 +258,30 @@ def generate_markdown_documentation(schemas: Dict[str, Any]) -> str:
         md.append("| Field | Type | Description | Example |")
         md.append("|-------|------|-------------|---------|")
         for field in schema["fields"]:
-            md.append(f"| {field['name']} | {field['type']} | {field['description']} | {field.get('example', 'N/A')} |")
+            md.append(
+                f"| {field['name']} | {field['type']} | {field['description']} | {field.get('example', 'N/A')} |"
+            )
         md.append(f"\n**Example:** `{schema['example_line']}`\n")
-    
+
     return "\n".join(md)
 
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Output log format schemas")
     parser.add_argument(
         "--format",
         choices=["json", "yaml", "markdown"],
         default="json",
-        help="Output format (default: json)"
+        help="Output format (default: json)",
     )
-    parser.add_argument(
-        "--output",
-        help="Output file (default: stdout)"
-    )
-    
+    parser.add_argument("--output", help="Output file (default: stdout)")
+
     args = parser.parse_args()
-    
+
     output = output_schemas(args.format)
-    
+
     if args.output:
         with open(args.output, "w") as f:
             f.write(output)

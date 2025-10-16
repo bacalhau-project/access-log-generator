@@ -29,21 +29,29 @@ success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-# Function to get next semantic version
-get_next_version() {
-    local latest_tag
-    latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
-    
-    # Remove 'v' prefix
-    latest_tag=${latest_tag#v}
-    
-    # Split into major.minor.patch
-    IFS='.' read -r major minor patch <<< "$latest_tag"
-    
-    # Increment minor version
-    minor=$((minor + 1))
-    
-    echo "v${major}.${minor}.0"
+# Function to get version for builds
+get_build_version() {
+    # If VERSION_TAG is already set, use it
+    if [ -n "${VERSION_TAG:-}" ]; then
+        echo "$VERSION_TAG"
+        return
+    fi
+
+    # Check if we're on a tagged commit
+    local current_tag
+    current_tag=$(git describe --exact-match --tags 2>/dev/null || echo "")
+
+    if [ -n "$current_tag" ]; then
+        # We're on a tagged commit, use that tag
+        echo "$current_tag"
+    else
+        # Not on a tagged commit, use dev version with commit hash
+        local latest_tag
+        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v2.0.0")
+        local git_hash
+        git_hash=$(git rev-parse --short HEAD)
+        echo "${latest_tag}-dev.${git_hash}"
+    fi
 }
 
 # Configuration with defaults
@@ -51,7 +59,7 @@ PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 DOCKERFILE="${DOCKERFILE:-Dockerfile}"
 BUILDER_NAME="${BUILDER_NAME:-multiarch-builder}"
 REGISTRY="${REGISTRY:-ghcr.io}"
-VERSION_TAG="${VERSION_TAG:-$(get_next_version)}"
+VERSION_TAG="${VERSION_TAG:-$(get_build_version)}"
 SKIP_PUSH="${SKIP_PUSH:-false}"
 BUILD_CACHE="${BUILD_CACHE:-true}"
 REQUIRE_LOGIN="${REQUIRE_LOGIN:-true}"
@@ -129,7 +137,7 @@ setup_builder() {
         warn "Removing existing builder instance"
         docker buildx rm "$BUILDER_NAME" >/dev/null 2>&1
     fi
-    
+
     docker buildx create --name "$BUILDER_NAME" \
         --driver docker-container \
         --bootstrap || error "Failed to create buildx builder"
@@ -142,10 +150,12 @@ generate_tags() {
 
     # Add version tag
     tags+=("$base_tag:$VERSION_TAG")
-    
-    # Add latest tag
-    tags+=("$base_tag:latest")
-    
+
+    # Only add 'latest' tag if this is a release version (not dev)
+    if [[ ! "$VERSION_TAG" =~ -dev\. ]]; then
+        tags+=("$base_tag:latest")
+    fi
+
     # If in git repo, add git commit hash tag
     if git rev-parse --git-dir > /dev/null 2>&1; then
         local git_hash
@@ -165,18 +175,18 @@ build_and_push_images() {
     local platforms="$1"
     local tag_args
     tag_args=$(generate_tags)
-    
+
     log "Building for platforms: $platforms"
-    
+
     # Get git commit hash and build date
     local git_commit="unknown"
     local build_date
     build_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    
+
     if git rev-parse --git-dir > /dev/null 2>&1; then
         git_commit=$(git rev-parse --short HEAD)
     fi
-    
+
     # Create the build_args array
     local build_args=(
         --platform "$platforms"
@@ -209,7 +219,7 @@ build_and_push_images() {
     if ! docker buildx build "${build_args[@]}" .; then
         error "Build failed for $platforms"
     fi
-    
+
     success "Successfully built images for $platforms"
     log "Version: $VERSION_TAG"
     log "Git Commit: $git_commit"
@@ -221,21 +231,27 @@ print_usage() {
     echo "  IMAGE_NAME     : Name of the image (default: derived from directory name)"
     echo "  PLATFORMS      : Target platforms (default: linux/amd64,linux/arm64)"
     echo "  DOCKERFILE     : Path to Dockerfile (default: ./Dockerfile)"
-    echo "  VERSION_TAG    : Version tag (default: auto-incremented semver, e.g., v2.0.0)"
+    echo "  VERSION_TAG    : Version tag (default: auto-detected from git)"
     echo "  REGISTRY       : Docker registry (default: ghcr.io)"
     echo "  SKIP_PUSH      : Skip pushing to registry (default: false)"
     echo "  BUILD_CACHE    : Use build cache (default: true)"
     echo "  REQUIRE_LOGIN  : Require Docker registry login (default: false)"
     echo ""
+    echo "Version Strategy:"
+    echo "  - On tagged commit (e.g., v2.1.0): uses that tag"
+    echo "  - On untagged commit: uses 'v2.0.0-dev.abc123' (dev version with commit hash)"
+    echo "  - Dev versions do NOT overwrite 'latest' tag"
+    echo ""
     echo "Examples:"
-    echo "  ./build.sh                    # Auto-increment minor version"
-    echo "  VERSION_TAG=v2.0.0 ./build.sh # Specific version"
+    echo "  ./build.sh                    # Dev build (e.g., v2.0.0-dev.abc123)"
+    echo "  git tag v2.1.0 && ./build.sh  # Release build v2.1.0"
+    echo "  VERSION_TAG=v2.1.0 ./build.sh # Force specific version"
     echo "  SKIP_PUSH=true ./build.sh     # Build locally without pushing"
 }
 
 main() {
     trap cleanup EXIT
-    
+
     if [ "${1:-}" = "--help" ]; then
         print_usage
         exit 0
@@ -244,18 +260,18 @@ main() {
     log "Starting build process..."
     log "Version: $VERSION_TAG"
     validate_requirements
-    
+
     setup_builder
     build_and_push_images "$PLATFORMS"
-    
+
     success "Build completed successfully"
-    
+
     # Pull the latest image after successful build
     if [ "$SKIP_PUSH" = "false" ]; then
         log "Pulling latest image..."
         docker pull "$REGISTRY/$IMAGE_NAME:latest" || warn "Failed to pull latest image"
     fi
-    
+
     log "You can now pull and run the image with:"
     log "docker pull $REGISTRY/$IMAGE_NAME:$VERSION_TAG"
     log "docker pull $REGISTRY/$IMAGE_NAME:latest"

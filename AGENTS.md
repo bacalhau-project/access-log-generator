@@ -10,6 +10,12 @@ python -m unittest tests.test_access_log_generator.TestNCSALogFormat -v
 python -m unittest tests.test_access_log_generator.TestConfigValidation.test_valid_config -v
 # Lint - use ruff for Python linting
 ruff check *.py tests/
+# Lint - auto-fix issues
+ruff check *.py tests/ --fix
+# Format - format code with ruff
+ruff format *.py tests/
+# Pre-commit - run all pre-commit hooks (recommended before committing)
+pre-commit run --all-files
 # Run - execute with uv (inline script metadata)
 uv run -s access-log-generator.py
 ```
