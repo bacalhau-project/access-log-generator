@@ -142,6 +142,27 @@ def print_verbose_error(msg: str, exc: Optional[Exception] = None) -> None:
         print("--- End Traceback ---\n", file=sys.stderr)
 
 
+def console_info(msg: str) -> None:
+    """Print informational message to console"""
+    print(f"ℹ️  {msg}")
+
+
+def console_success(msg: str) -> None:
+    """Print success message to console"""
+    print(f"✅ {msg}")
+
+
+def console_error(msg: str) -> None:
+    """Print error message to console"""
+    print(f"❌ {msg}", file=sys.stderr)
+
+
+def console_verbose(msg: str) -> None:
+    """Print verbose message to console if verbose mode enabled"""
+    if VERBOSE_MODE:
+        print(f"📝 {msg}")
+
+
 class SessionState:
     """State machine states for user sessions"""
 
@@ -592,9 +613,6 @@ def setup_logging(output_dir: Path, config: Dict = None) -> Dict[str, logging.Lo
                 if hasattr(handler.stream, "reconfigure"):
                     handler.stream.reconfigure(write_through=True)
 
-        # Log initial message to system log
-        loggers["system"].info("Logging initialized - all output directed to log files")
-
         return loggers
 
     except Exception as e:
@@ -919,21 +937,21 @@ class AccessLogGenerator:
                 logger.error(f"Directory not writable: {e}")
                 raise
 
-            # Log initialization info to system log instead of access log
-            logger = self.loggers["system"]
-            logger.info(
-                f"Access Log Generator started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            )
-            logger.info(f"Output directory: {self.output_dir}")
-            logger.info(f"Rate: {self.rate} logs/second")
-            logger.info(f"Debug mode: {'on' if self.debug else 'off'}")
-            logger.info(f"Pre-warm: {'yes' if self.pre_warm else 'no'}")
+            if VERBOSE_MODE:
+                console_verbose(
+                    f"Generator started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+                console_verbose(f"Output directory: {self.output_dir}")
+                console_verbose(f"Rate: {self.rate} logs/second")
+                console_verbose(f"Debug mode: {'on' if self.debug else 'off'}")
+                console_verbose(f"Pre-warm: {'yes' if self.pre_warm else 'no'}")
 
         except Exception as e:
-            logger = self.loggers["system"]
-            logger.critical(f"Initialization failed: {e}")
+            console_error(f"Initialization failed: {e}")
             if VERBOSE_MODE:
-                logger.exception("Full traceback:")
+                import traceback
+
+                traceback.print_exc(file=sys.stderr)
             sys.exit(1)
 
     def _write_log_entry(self, entry: str, max_retries: int = 3) -> bool:
@@ -1280,10 +1298,8 @@ class AccessLogGenerator:
         """Run the log generator"""
         try:
             self._initialize_log_file()
-            system_logger = self.loggers["system"]
-            system_logger.info(
-                f"Starting log generation. Logs will be written to: {self.log_file}"
-            )
+            msg = f"Starting log generation. Logs will be written to: {self.log_file}"
+            console_info(msg)
 
             # Start health check server if enabled
             if self.health_check_enabled:
@@ -1318,10 +1334,11 @@ class AccessLogGenerator:
 
                     # Log rate every 10 seconds
                     if int(now) % 10 == 0:
-                        system_logger.info(
-                            f"Current rate: {current_rate:.1f} logs/sec, "
-                            f"Active sessions: {len(session_generators)}"
-                        )
+                        if VERBOSE_MODE:
+                            console_verbose(
+                                f"Rate: {current_rate:.1f}/sec, "
+                                f"Sessions: {len(session_generators)}"
+                            )
 
                 # Process active sessions
                 session_generators = self._process_active_sessions(session_generators)
@@ -1329,17 +1346,23 @@ class AccessLogGenerator:
                 # Sleep to prevent CPU spinning while maintaining precision
                 time.sleep(max(0, 1.0 / current_rate - 0.001))
 
-            system_logger.info("Gracefully shutting down...")
+            console_success(
+                f"Shutdown complete. Total logs generated: {self.total_logs_generated}"
+            )
 
         except KeyboardInterrupt:
-            system_logger.info("Received interrupt signal, shutting down...")
+            console_info(
+                f"Interrupted. Total logs generated: {self.total_logs_generated}"
+            )
             self.shutdown_flag.set()
         except Exception as e:
-            system_logger.error(f"Error: {e}")
+            console_error(f"Generator error: {e}")
             if VERBOSE_MODE:
-                system_logger.exception("Full traceback:")
+                import traceback
+
+                traceback.print_exc(file=sys.stderr)
             else:
-                system_logger.info("(Run with --verbose for full traceback)")
+                console_info("Run with --verbose for full traceback")
             sys.exit(1)
 
     def monitor_disk_space(
@@ -1389,31 +1412,33 @@ class AccessLogGenerator:
                             file_size_gb = log_file.stat().st_size / (
                                 1024 * 1024 * 1024
                             )
-                            logger.warning(
-                                f"Deleting old log file: {log_file} ({file_size_gb:.2f}GB)"
-                            )
+                            if VERBOSE_MODE:
+                                console_verbose(
+                                    f"Deleting: {log_file.name} ({file_size_gb:.2f}GB)"
+                                )
 
                             try:
                                 log_file.unlink()
                                 free_gb += file_size_gb
                             except Exception as e:
-                                logger.error(f"Failed to delete {log_file}: {e}")
+                                console_error(f"Failed to delete {log_file}: {e}")
 
-                        # Check if we've freed up enough space
                         disk_usage = shutil.disk_usage(output_dir)
                         free_gb = disk_usage.free / (1024 * 1024 * 1024)
-                        logger.info(f"After cleanup: {free_gb:.2f}GB free")
+                        if VERBOSE_MODE:
+                            console_verbose(f"After cleanup: {free_gb:.2f}GB free")
 
                         if free_gb < min_free_gb:
-                            logger.error(
-                                f"Still low on disk space after cleanup: {free_gb:.2f}GB free"
+                            console_error(
+                                f"Still low on disk space: {free_gb:.2f}GB free"
                             )
 
                 except Exception as e:
-                    logger = self.loggers["system"]
-                    logger.error(f"Error in disk space monitor: {e}")
+                    console_error(f"Disk space monitor error: {e}")
                     if VERBOSE_MODE:
-                        logger.exception("Disk monitor error details:")
+                        import traceback
+
+                        traceback.print_exc(file=sys.stderr)
 
                 # Sleep for the specified interval
                 time.sleep(check_interval)
@@ -1421,10 +1446,10 @@ class AccessLogGenerator:
         # Start the monitoring thread
         monitor_thread = threading.Thread(target=_check_disk_space, daemon=True)
         monitor_thread.start()
-        system_logger = self.loggers["system"]
-        system_logger.info(
-            f"Disk space monitor started (min: {min_free_gb}GB, interval: {check_interval}s)"
-        )
+        if VERBOSE_MODE:
+            console_verbose(
+                f"Disk monitor started (min: {min_free_gb}GB, interval: {check_interval}s)"
+            )
         return monitor_thread
 
     def _start_health_check_server(self):
@@ -1456,10 +1481,10 @@ class AccessLogGenerator:
 
         health_thread = threading.Thread(target=run_server, daemon=True)
         health_thread.start()
-        system_logger = self.loggers["system"]
-        system_logger.info(
-            f"Health check server started on port {self.health_check_port}"
-        )
+        if VERBOSE_MODE:
+            console_verbose(
+                f"Health check server started on port {self.health_check_port}"
+            )
 
 
 def main():
@@ -1468,9 +1493,8 @@ def main():
     def signal_handler(signum, frame):
         """Handle shutdown signals gracefully"""
         if generator:
-            system_logger = generator.loggers.get("system")
-            if system_logger:
-                system_logger.info(
+            if VERBOSE_MODE:
+                console_verbose(
                     f"Received signal {signum}, initiating graceful shutdown..."
                 )
             generator.shutdown_flag.set()
@@ -1536,6 +1560,9 @@ Documentation:
     args = parser.parse_args()
     global VERBOSE_MODE
     VERBOSE_MODE = args.verbose
+
+    if VERBOSE_MODE:
+        print("🔍 Verbose mode enabled - detailed error information will be shown")
 
     # Handle version flag
     if args.version:
@@ -1641,16 +1668,14 @@ Documentation:
 
     # Initialize logging with possibly overridden directory and rotation settings
     loggers = setup_logging(Path(config["output"]["directory"]), config)
-    system_logger = loggers["system"]
 
-    # Log all collected initial messages
+    # Log all collected initial messages to console
     for level, msg in all_initial_messages:
+        clean_msg = msg.strip("\n")
         if level == "info":
-            system_logger.info(msg.strip("\n"))  # Strip newlines for cleaner log output
+            console_info(clean_msg)
         elif level == "error":
-            # Errors from load_config that didn't exit should be logged as errors.
-            # Fatal errors in load_config already printed to stderr and exited.
-            system_logger.error(msg.strip("\n"))
+            console_error(clean_msg)
 
     # Pass loggers to the generator
     generator = AccessLogGenerator(config, loggers)
