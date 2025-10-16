@@ -161,6 +161,15 @@ traffic_patterns:
 
 ## 📊 Generated Logs
 
+### Console Output vs Log Files
+
+The generator separates console output from log files:
+
+- **Console (stdout)**: Only user-facing information (configuration summaries, status messages, errors, warnings)
+- **Log Files**: Actual application data (access logs, error logs, system logs)
+
+This clean separation makes it easy to integrate the generator into monitoring systems and pipelines without cluttering log files with console output.
+
 The generator creates three types of logs:
 
 ### 1. Access Log (`access.log`)
@@ -196,6 +205,23 @@ python log_schema_outputter.py --format yaml
 ```
 
 ## 🔧 Advanced Usage
+
+### Command-Line Options
+
+```bash
+# Run with verbose error logging (includes full Python tracebacks)
+access-log-generator config.yaml --verbose
+# or
+access-log-generator config.yaml -v
+
+# Run with specific log directory (overrides config)
+access-log-generator config.yaml --log-dir /custom/path
+```
+
+The `--verbose` flag is useful for debugging:
+- Shows full Python exception tracebacks when errors occur
+- Helps identify configuration issues
+- Useful for development and troubleshooting
 
 ### Environment Variables
 ```bash
