@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "access-log-generator"
-version = "2.1.0"
+version = "2.2.0"
 description = "Generate realistic NCSA-format web server access logs"
 readme = "README.md"
 requires-python = ">=3.11"
