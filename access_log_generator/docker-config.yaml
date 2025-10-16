@@ -1,0 +1,79 @@
+# Access Log Generator Configuration - Docker Container
+# This config is used when running in Docker containers
+
+# Output settings
+output:
+  directory: /var/log/app # Docker volume mount point
+  debug: false # Enable debug output
+  pre_warm: false # Simulate 24 hours of traffic before starting
+  rate: 2 # Logs per second (base rate before traffic patterns)
+  health_check:
+    enabled: true # Enable HTTP health check endpoint
+    port: 8080 # Port for health check server
+  log_rotation:
+    enabled: true # Enable log rotation
+    max_size_mb: 1000 # Maximum size in MB before rotation (1GB)
+    when: "h" # Time-based rotation: 'h' (hourly), 'midnight', 'd' (daily), 'w0-w6' (weekday, 0=Monday)
+    interval: 1 # How many of the 'when' units between rotations
+    backup_count: 5 # Number of backup files to keep
+    compress: true # Compress rotated logs
+
+# State transition probabilities
+state_transitions:
+  START:
+    LOGIN: 0.7 # Probability of going to login from start
+    DIRECT_ACCESS: 0.3 # Probability of direct access without login
+  LOGIN:
+    BROWSING: 0.9 # Probability of successful login and browsing
+    ABANDON: 0.1 # Probability of login abandonment
+  DIRECT_ACCESS:
+    BROWSING: 0.8 # Probability of continuing to browse
+    LEAVE: 0.2 # Probability of leaving site
+  BROWSING:
+    LOGOUT: 0.4 # Probability of user logging out
+    ABANDON: 0.3 # Probability of session abandonment
+    ERROR: 0.05 # Probability of error occurring
+    BROWSING: 0.25 # Probability of continuing to browse
+
+# Page navigation weights
+navigation:
+  home:
+    "/": 0.2 # Weight for staying on home page
+    "/about": 0.3 # Weight for about page
+    "/products": 0.4 # Weight for products page
+    "/search": 0.1 # Weight for search page
+
+# Error rates
+error_rates:
+  global_500_rate: 0.02 # Probability of 500 error on any page
+  product_404_rate: 0.1 # Probability of 404 error on product pages
+  cart_abandonment_rate: 0.5 # Probability of cart abandonment
+  high_error_pages: # Pages with elevated error rates
+    - path: "/products?categoryID=4"
+      error_rate: 0.3
+    - path: "/products?categoryID=5"
+      error_rate: 0.3
+
+# Session parameters
+session:
+  min_browsing_duration: 10 # Minimum session duration in seconds
+  max_browsing_duration: 300 # Maximum session duration in seconds
+  min_page_view_interval: 2 # Minimum time between page views in seconds
+  max_page_view_interval: 10 # Maximum time between page views in seconds
+
+# Traffic patterns by time of day (Eastern Time)
+traffic_patterns:
+  - time: "2-6"
+    multiplier: 0.1 # Late night traffic multiplier
+  - time: "6-9"
+    multiplier: 0.3 # Early morning traffic multiplier
+  - time: "9-12"
+    multiplier: 0.7 # Late morning traffic multiplier
+  - time: "12-15"
+    multiplier: 1.0 # Afternoon peak traffic multiplier
+  - time: "15-18"
+    multiplier: 0.8 # Early evening traffic multiplier
+  - time: "18-21"
+    multiplier: 0.5 # Dinner time traffic multiplier
+  - time: "21-2"
+    multiplier: 0.2 # Night time traffic multiplier

@@ -41,8 +41,8 @@ Registry = "https://ghcr.io/bacalhau-project/access-log-generator"
 access-log-generator = "access_log_generator:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
-only-include = ["access-log-generator.py"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"access-log-generator.py" = "access_log_generator.py"
+packages = ["access_log_generator"]
+include = [
+    "access_log_generator/**/*.py",
+    "access_log_generator/config/*.yaml",
+]

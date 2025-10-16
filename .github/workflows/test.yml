@@ -67,4 +67,4 @@ jobs:
       - name: Test package installation
         run: |
           uv pip install -e .
-          access-log-generator --version
+          uv run access-log-generator --version
