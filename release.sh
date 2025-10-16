@@ -37,12 +37,12 @@ Create a new release by:
 3. Pushing tag to trigger CI/CD build
 
 Arguments:
-  VERSION    The version to release (e.g., 2.1.0 or v2.1.0)
+   VERSION    The version to release (e.g., 2.1.0 or v2.1.0)
 
 Examples:
-  ./release.sh 2.1.0        # Create release v2.1.0
-  ./release.sh v2.1.0       # Same as above
-  ./release.sh              # Interactive mode (prompts for version)
+   ./release.sh 2.1.0        # Create release v2.1.0
+   ./release.sh v2.1.0       # Same as above
+   ./release.sh              # Auto-bump minor version (2.0.0 -> 2.1.0)
 
 The script will:
 - Update pyproject.toml version
@@ -84,6 +84,24 @@ validate_version() {
     echo "$version"
 }
 
+bump_minor_version() {
+    local version="$1"
+    # Remove 'v' prefix if present
+    version="${version#v}"
+
+    # Parse semver
+    local major minor patch
+    major=$(echo "$version" | cut -d. -f1)
+    minor=$(echo "$version" | cut -d. -f2)
+    patch=$(echo "$version" | cut -d. -f3)
+
+    # Bump minor, reset patch to 0
+    minor=$((minor + 1))
+    patch=0
+
+    echo "$major.$minor.$patch"
+}
+
 main() {
     if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
         print_usage
@@ -109,12 +127,19 @@ main() {
 
     local version="${1:-}"
 
-    # If no version provided, prompt for it
+    # Get current version for display
+    local current_version
+    current_version=$(get_current_version)
+    log "Current version: $current_version"
+
+    # If no version provided, auto-bump minor version
     if [ -z "$version" ]; then
-        local current_version
-        current_version=$(get_current_version)
-        log "Current version: $current_version"
-        read -p "Enter new version (e.g., 2.1.0): " version
+        version=$(bump_minor_version "$current_version")
+        log "Auto-bumping minor version: $current_version -> $version"
+        read -p "Press Enter to confirm, or enter a different version: " user_version
+        if [ -n "$user_version" ]; then
+            version="$user_version"
+        fi
     fi
 
     # Validate and normalize version
