@@ -14,6 +14,10 @@ log() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
+info() {
+    echo -e "$1"
+}
+
 warn() {
     echo -e "${YELLOW}[WARN]${NC} $1" >&2
 }
@@ -29,20 +33,25 @@ success() {
 
 print_usage() {
     cat << EOF
-Usage: ./release.sh [VERSION]
+Usage: ./release.sh [OPTIONS] [VERSION]
 
 Create a new release by:
 1. Updating version in pyproject.toml
 2. Creating a git tag
-3. Pushing tag to trigger CI/CD build
+3. Optionally pushing tag to trigger CI/CD build
+
+Options:
+   --push     Automatically push after creating the tag
+   --help     Show this help message
 
 Arguments:
    VERSION    The version to release (e.g., 2.1.0 or v2.1.0)
 
 Examples:
-   ./release.sh 2.1.0        # Create release v2.1.0
-   ./release.sh v2.1.0       # Same as above
+   ./release.sh 2.1.0        # Create release v2.1.0 (prompts to push)
+   ./release.sh --push 2.1.0 # Create and push release v2.1.0
    ./release.sh              # Auto-bump minor version (2.0.0 -> 2.1.0)
+   ./release.sh --push       # Auto-bump and automatically push
 
 The script will:
 - Update pyproject.toml version
@@ -103,10 +112,26 @@ bump_minor_version() {
 }
 
 main() {
-    if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-        print_usage
-        exit 0
-    fi
+    local auto_push=false
+    local version="${1:-}"
+
+    # Parse options
+    while [[ "$version" == --* ]]; do
+        case "$version" in
+            --help|-h)
+                print_usage
+                exit 0
+                ;;
+            --push)
+                auto_push=true
+                version="${2:-}"
+                shift
+                ;;
+            *)
+                error "Unknown option: $version"
+                ;;
+        esac
+    done
 
     # Check we're in a git repo
     if ! git rev-parse --git-dir > /dev/null 2>&1; then
@@ -124,8 +149,6 @@ main() {
             exit 1
         fi
     fi
-
-    local version="${1:-}"
 
     # Get current version for display
     local current_version
@@ -180,25 +203,33 @@ main() {
     success "Created tag $tag"
 
     # Push
-    read -p "Push commit and tag to origin? (y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    local should_push=$auto_push
+    if [ "$auto_push" = false ]; then
+        read -p "Push commit and tag to origin? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            should_push=true
+        fi
+    fi
+
+    if [ "$should_push" = true ]; then
         log "Pushing to origin..."
         git push origin main
         git push origin "$tag"
         success "Release $tag pushed to origin"
-        log ""
-        log "GitHub Actions will now build and push:"
-        log "  - ghcr.io/bacalhau-project/access-log-generator:$tag"
-        log "  - ghcr.io/bacalhau-project/access-log-generator:latest"
-        log ""
-        log "Monitor the build at:"
-        log "  https://github.com/bacalhau-project/access-log-generator/actions"
+        echo ""
+        info "GitHub Actions will now build and push:"
+        info "  - ghcr.io/bacalhau-project/access-log-generator:$tag"
+        info "  - ghcr.io/bacalhau-project/access-log-generator:latest"
+        echo ""
+        info "Monitor the build at:"
+        info "  https://github.com/bacalhau-project/access-log-generator/actions"
     else
         log "Tag created locally but not pushed."
-        log "To push later, run:"
-        log "  git push origin main"
-        log "  git push origin $tag"
+        echo ""
+        info "To push later, run:"
+        info "  git push origin main"
+        info "  git push origin $tag"
     fi
 }
 
