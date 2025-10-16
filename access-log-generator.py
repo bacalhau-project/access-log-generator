@@ -128,6 +128,19 @@ def get_version_info() -> Tuple[str, str, str]:
 
 VERSION, GIT_COMMIT, BUILD_DATE = get_version_info()
 
+VERBOSE_MODE = False
+
+
+def print_verbose_error(msg: str, exc: Optional[Exception] = None) -> None:
+    """Print error message with traceback if verbose mode is enabled"""
+    print(f"❌ {msg}", file=sys.stderr)
+    if VERBOSE_MODE and exc:
+        import traceback
+
+        print("\n--- Full Traceback ---", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        print("--- End Traceback ---\n", file=sys.stderr)
+
 
 class SessionState:
     """State machine states for user sessions"""
@@ -255,17 +268,17 @@ def load_config(
         except base64.binascii.Error as e:
             msg = f"Failed to decode base64 configuration: {e}"
             messages_to_log.append(("error", msg))
-            print(f"❌ {msg}", file=sys.stderr)
+            print_verbose_error(msg, e)
             sys.exit(1)
         except yaml.YAMLError as e:
             msg = f"Failed to parse base64 decoded YAML: {e}"
             messages_to_log.append(("error", msg))
-            print(f"❌ {msg}", file=sys.stderr)
+            print_verbose_error(msg, e)
             sys.exit(1)
         except Exception as e:
             msg = f"Error processing base64 configuration: {e}"
             messages_to_log.append(("error", msg))
-            print(f"❌ {msg}", file=sys.stderr)
+            print_verbose_error(msg, e)
             sys.exit(1)
 
     # If no base64 config, try plain YAML env var
@@ -297,12 +310,12 @@ def load_config(
                     else:
                         msg = "LOG_GENERATOR_CONFIG_YAML contains invalid YAML and is not a valid file path"
                         messages_to_log.append(("error", msg))
-                        print(f"❌ {msg}", file=sys.stderr)
+                        print_verbose_error(msg)
                         sys.exit(1)
             except Exception as e:
                 msg = f"Failed to load configuration from environment variable: {e}"
                 messages_to_log.append(("error", msg))
-                print(f"❌ {msg}", file=sys.stderr)
+                print_verbose_error(msg, e)
                 sys.exit(1)
 
     # If no environment configs, use file config
@@ -317,12 +330,12 @@ def load_config(
             # env vars were expected due to args.config being None, but the env vars are also missing/empty.
             msg = "Configuration via environment variables was attempted but no relevant environment variables were found."
             messages_to_log.append(("error", msg))
-            print(f"❌ {msg}", file=sys.stderr)
+            print_verbose_error(msg)
             sys.exit(1)
         elif not config_path.exists():
             msg = f"Configuration file not found: {config_path}"
             messages_to_log.append(("error", msg))
-            print(f"❌ {msg}", file=sys.stderr)
+            print_verbose_error(msg)
             sys.exit(1)
 
         try:
@@ -337,19 +350,18 @@ def load_config(
         except yaml.YAMLError as e:
             msg = f"YAML parsing error in {config_path}: {e}"
             messages_to_log.append(("error", msg))
-            print(f"❌ {msg}", file=sys.stderr)
+            print_verbose_error(msg, e)
             sys.exit(1)
         except Exception as e:
             msg = f"Failed to load configuration from {config_path}: {e}"
             messages_to_log.append(("error", msg))
-            print(f"❌ {msg}", file=sys.stderr)
+            print_verbose_error(msg, e)
             sys.exit(1)
 
     if config is None:
-        # This should ideally not be reached if all paths above sys.exit appropriately.
         msg = "Configuration could not be loaded from any source."
         messages_to_log.append(("error", msg))
-        print(f"❌ {msg}", file=sys.stderr)
+        print_verbose_error(msg)
         sys.exit(1)
 
     # Validate configuration
@@ -362,7 +374,6 @@ def load_config(
                 "Configuration validation failed. See previous messages for details.",
             )
         )
-        # Print all validation messages to stderr before exiting
         for level, v_msg in validation_messages:
             print(f"❌ Validation {level}: {v_msg}", file=sys.stderr)
         print("❌ Configuration validation failed.", file=sys.stderr)
@@ -586,7 +597,8 @@ def setup_logging(output_dir: Path, config: Dict = None) -> Dict[str, logging.Lo
         return loggers
 
     except Exception as e:
-        print(f"Failed to set up logging: {e}", file=sys.stderr)
+        msg = f"Failed to set up logging: {e}"
+        print_verbose_error(msg, e)
         sys.exit(1)
 
 
@@ -919,6 +931,8 @@ class AccessLogGenerator:
         except Exception as e:
             logger = self.loggers["system"]
             logger.critical(f"Initialization failed: {e}")
+            if VERBOSE_MODE:
+                logger.exception("Full traceback:")
             sys.exit(1)
 
     def _write_log_entry(self, entry: str, max_retries: int = 3) -> bool:
@@ -950,8 +964,10 @@ class AccessLogGenerator:
                 system_logger.warning(
                     f"Failed to write log entry (attempt {attempt + 1}/{max_retries}): {e}"
                 )
+                if VERBOSE_MODE:
+                    system_logger.debug(f"Write error details: {e}", exc_info=True)
                 time.sleep(retry_delay)
-                retry_delay *= 2  # Exponential backoff
+                retry_delay *= 2
 
         return False
 
@@ -1141,6 +1157,8 @@ class AccessLogGenerator:
                             self._initialize_log_file()
                         except Exception as e:
                             logger.critical(f"Failed to recover: {e}")
+                            if VERBOSE_MODE:
+                                logger.exception("Recovery error details:")
                             sys.exit(1)
                     else:
                         self.total_logs_generated += 1
@@ -1317,7 +1335,10 @@ class AccessLogGenerator:
             self.shutdown_flag.set()
         except Exception as e:
             system_logger.error(f"Error: {e}")
-            system_logger.exception("Full traceback:")
+            if VERBOSE_MODE:
+                system_logger.exception("Full traceback:")
+            else:
+                system_logger.info("(Run with --verbose for full traceback)")
             sys.exit(1)
 
     def monitor_disk_space(
@@ -1390,6 +1411,8 @@ class AccessLogGenerator:
                 except Exception as e:
                     logger = self.loggers["system"]
                     logger.error(f"Error in disk space monitor: {e}")
+                    if VERBOSE_MODE:
+                        logger.exception("Disk monitor error details:")
 
                 # Sleep for the specified interval
                 time.sleep(check_interval)
@@ -1502,8 +1525,16 @@ Documentation:
         action="store_true",
         help="Exit immediately - used just for pre-caching dependencies",
     )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable verbose logging to show detailed error information",
+    )
 
     args = parser.parse_args()
+    global VERBOSE_MODE
+    VERBOSE_MODE = args.verbose
 
     # Handle version flag
     if args.version:
