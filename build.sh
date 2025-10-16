@@ -215,6 +215,14 @@ build_and_push_images() {
         build_args+=(--load)
     fi
 
+    # Update VERSION file for uvx support
+    cat > VERSION << EOF
+VERSION=$VERSION_TAG
+GIT_COMMIT=$git_commit
+BUILD_DATE=$build_date
+EOF
+    log "Updated VERSION file for uvx support"
+
     # Execute build (add the path argument ".")
     if ! docker buildx build "${build_args[@]}" .; then
         error "Build failed for $platforms"

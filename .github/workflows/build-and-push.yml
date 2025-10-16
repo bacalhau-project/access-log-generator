@@ -51,6 +51,14 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Update VERSION file
+        run: |
+          cat > VERSION << EOF
+          VERSION=${{ steps.meta.outputs.version }}
+          GIT_COMMIT=${{ github.sha }}
+          BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          EOF
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -70,3 +78,12 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }} --exit
+
+      - name: Commit VERSION file for releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add VERSION
+          git diff --staged --quiet || git commit -m "Update VERSION file for ${{ steps.meta.outputs.version }}"
+          git push

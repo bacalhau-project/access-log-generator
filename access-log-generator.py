@@ -32,10 +32,101 @@ import yaml
 from faker import Faker
 from flask import Flask, jsonify
 
-# Version information - injected at build time
-VERSION = os.environ.get("APP_VERSION", "dev")
-GIT_COMMIT = os.environ.get("GIT_COMMIT", "unknown")
-BUILD_DATE = os.environ.get("BUILD_DATE", "unknown")
+
+# Version information - injected at build time, fallback to VERSION file, then git info
+def get_version_info() -> Tuple[str, str, str]:
+    """Get version information from environment, VERSION file, or git"""
+
+    # 1. If running in Docker with build info, use that
+    if os.environ.get("APP_VERSION"):
+        return (
+            os.environ.get("APP_VERSION", "dev"),
+            os.environ.get("GIT_COMMIT", "unknown"),
+            os.environ.get("BUILD_DATE", "unknown"),
+        )
+
+    # 2. Try to read from VERSION file (for uvx support)
+    version_file = Path(__file__).parent / "VERSION"
+    if version_file.exists():
+        try:
+            content = version_file.read_text().strip()
+            version_info = {}
+            for line in content.split("\n"):
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    version_info[key.strip()] = value.strip()
+
+            if version_info.get("VERSION") and version_info.get("VERSION") != "dev":
+                return (
+                    version_info.get("VERSION", "dev"),
+                    version_info.get("GIT_COMMIT", "unknown"),
+                    version_info.get("BUILD_DATE", "unknown"),
+                )
+        except Exception:
+            pass  # Fall through to git if VERSION file is unreadable
+
+    # 3. Local development: get info from git
+    try:
+        import subprocess
+
+        # Get version from git tag or use dev version
+        try:
+            current_tag = (
+                subprocess.check_output(
+                    ["git", "describe", "--exact-match", "--tags"],
+                    stderr=subprocess.DEVNULL,
+                )
+                .decode()
+                .strip()
+            )
+            version = current_tag
+        except subprocess.CalledProcessError:
+            # Not on a tagged commit, use dev version with commit hash
+            try:
+                latest_tag = (
+                    subprocess.check_output(
+                        ["git", "describe", "--tags", "--abbrev=0"],
+                        stderr=subprocess.DEVNULL,
+                    )
+                    .decode()
+                    .strip()
+                    or "v2.0.0"
+                )
+                git_hash = (
+                    subprocess.check_output(
+                        ["git", "rev-parse", "--short", "HEAD"],
+                        stderr=subprocess.DEVNULL,
+                    )
+                    .decode()
+                    .strip()
+                )
+                version = f"{latest_tag}-dev.{git_hash}"
+            except subprocess.CalledProcessError:
+                version = "dev"
+                git_hash = "unknown"
+
+        # Get git commit
+        try:
+            git_hash = (
+                subprocess.check_output(
+                    ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+                )
+                .decode()
+                .strip()
+            )
+        except subprocess.CalledProcessError:
+            git_hash = "unknown"
+
+        # Get build date
+        build_date = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        return version, git_hash, build_date
+    except (ImportError, FileNotFoundError):
+        # Git not available
+        return "dev", "unknown", "unknown"
+
+
+VERSION, GIT_COMMIT, BUILD_DATE = get_version_info()
 
 
 class SessionState:
