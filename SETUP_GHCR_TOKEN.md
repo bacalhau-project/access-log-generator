@@ -1,24 +1,8 @@
-# Setting Up GitHub Actions for Docker Image Releases
+# Setting Up GHCR_TOKEN for Docker Image Releases
 
-GitHub Actions automatically provides `secrets.GITHUB_TOKEN` which has the necessary permissions to build and push Docker images to GitHub Container Registry (GHCR). No additional setup is required!
+To enable GitHub Actions to build and push Docker images to GitHub Container Registry (GHCR), you need to create and configure a personal access token.
 
-The workflow uses `secrets.GITHUB_TOKEN` by default, which:
-- ✅ Has `write:packages` scope for GHCR
-- ✅ Is automatically created for each workflow run
-- ✅ Has appropriate permissions for your repository
-- ✅ Requires no manual configuration
-
-## How It Works
-
-When a tag is pushed (e.g., `git push origin v2.8.0`), GitHub Actions:
-1. Automatically logs in to GHCR using `secrets.GITHUB_TOKEN`
-2. Builds multi-arch Docker images (amd64, arm64)
-3. Pushes to ghcr.io with tags: `v2.8.0`, `2.8`, `2`, `latest`
-4. Creates build attestations
-
-## Alternative: Using a Personal Access Token (Optional)
-
-If you need additional permissions or want to use a custom token, you can still set up a personal access token:
+## Steps
 
 ### 1. Create Personal Access Token
 
@@ -39,10 +23,6 @@ If you need additional permissions or want to use a custom token, you can still 
 3. Name: `GHCR_TOKEN`
 4. Value: Paste the token from step 1
 5. Click "Add secret"
-
-### 3. Update Workflow (if using custom token)
-
-Update `.github/workflows/build-and-push.yml` to use `secrets.GHCR_TOKEN` instead of `secrets.GITHUB_TOKEN`
 
 ### 3. Verify
 
