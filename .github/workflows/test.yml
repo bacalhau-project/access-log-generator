@@ -51,3 +51,20 @@ jobs:
         run: |
           source .venv/bin/activate
           pytest tests/ -v -m integration || echo "Integration tests skipped (optional)"
+
+      - name: Test uvx execution from local directory
+        run: |
+          uvx --from . access-log-generator --version
+
+      - name: Test uvx execution with help
+        run: |
+          uvx --from . access-log-generator --help
+
+      - name: Test traditional uv run still works
+        run: |
+          uv run -s access-log-generator.py --version
+
+      - name: Test package installation
+        run: |
+          uv pip install -e .
+          access-log-generator --version
