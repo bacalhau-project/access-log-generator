@@ -1,28 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "access-log-generator"
 version = "0.1.0"
-description = "A utility to generate access logs."
+description = "Generate realistic NCSA-format web server access logs"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Bacalhau Project"}]
+keywords = ["logging", "testing", "web", "simulation", "access-logs"]
+
 dependencies = [
-    # Add your project's dependencies here, for example:
-    # "requests>=2.20.0",
-    # "numpy",
-    "faker>=35.2.2",
+    "faker>=33.3.1",
+    "python-dateutil>=2.9.0.post0",
+    "pytz>=2024.2",
+    "pyyaml>=6.0.2",
+    "flask>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.5",
     "iniconfig>=2.1.0",
     "packaging>=25.0",
     "pluggy>=1.5.0",
-    "pytest>=8.3.5",
-    "python-dateutil>=2.9.0.post0",
-    "pytz>=2025.2",
-    "pyyaml>=6.0.2",
     "six>=1.17.0",
     "typing-extensions>=4.13.2",
 ]
 
-# Optional: Specify the Python versions your project supports
-requires-python = ">=3.8"
+[project.urls]
+Repository = "https://github.com/bacalhau-project/access-log-generator"
+Issues = "https://github.com/bacalhau-project/access-log-generator/issues"
+Registry = "https://ghcr.io/bacalhau-project/access-log-generator"
 
-# You might also have other sections like [tool.uv] or [build-system]
-# For example:
-# [build-system]
-# requires = ["setuptools>=61.0"]
-# build-backend = "setuptools.build_meta"
+[project.scripts]
+access-log-generator = "access_log_generator:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+only-include = ["access-log-generator.py"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"access-log-generator.py" = "access_log_generator.py"

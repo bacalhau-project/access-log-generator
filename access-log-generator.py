@@ -2,15 +2,11 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "faker==33.3.1",
-#     "python-dateutil==2.9.0.post0",
-#     "pytz==2024.2",
-#     "pyyaml==6.0.2",
-#     "setuptools==75.8.0",
-#     "six==1.17.0",
-#     "typing-extensions==4.12.2",
-#     "wheel==0.45.1",
-#     "flask==3.1.0",
+#     "faker>=33.3.1",
+#     "python-dateutil>=2.9.0.post0",
+#     "pytz>=2024.2",
+#     "pyyaml>=6.0.2",
+#     "flask>=3.1.0",
 # ]
 # ///
 

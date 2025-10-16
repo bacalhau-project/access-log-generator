@@ -18,7 +18,26 @@ This container/project was born out of a need to create realistic, high-quality 
 
 ## 🚀 Quick Start
 
-### Run with Docker (recommended):
+### Run with uvx (recommended for quick testing):
+```bash
+# Run directly from GitHub (no installation needed!)
+uvx --from git+https://github.com/bacalhau-project/access-log-generator \
+  access-log-generator --help
+
+# Run with a local config file
+uvx --from git+https://github.com/bacalhau-project/access-log-generator \
+  access-log-generator config/sample_config.yaml
+
+# Or clone and run with uvx
+git clone https://github.com/bacalhau-project/access-log-generator.git
+cd access-log-generator
+uvx --from . access-log-generator config/config.yaml
+
+# Or use uv run directly from the repo
+uv run -s access-log-generator.py config/config.yaml
+```
+
+### Run with Docker:
 ```bash
 # Using docker compose (recommended)
 docker compose up
@@ -32,7 +51,7 @@ docker run -v ./logs:/var/log/app -v ./config:/app/config \
 docker compose up -d
 ```
 
-### Run directly with Python (3.12+):
+### Run directly with Python (3.11+):
 ```bash
 # Use the default config (writes to ./logs directory)
 ./access-log-generator.py config/config.yaml
@@ -48,6 +67,17 @@ python access-log-generator.py config/sample_config.yaml
 - `config/config.yaml` - Default config for local development (writes to ./logs)
 - `config/docker-config.yaml` - Config for Docker containers (writes to /var/log/app)
 - `config/sample_config.yaml` - Example with extended options and documentation
+
+### Install locally with uv:
+```bash
+# Clone and install
+git clone https://github.com/bacalhau-project/access-log-generator.git
+cd access-log-generator
+uv pip install -e .
+
+# Now run from anywhere
+access-log-generator config/config.yaml
+```
 
 ### Build the container:
 ```bash
