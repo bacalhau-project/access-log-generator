@@ -1181,9 +1181,6 @@ class AccessLogGenerator:
                     else:
                         self.total_logs_generated += 1
 
-                    if self.debug:
-                        print(log_entry.strip())
-
                 active_sessions.append(gen)
             except StopIteration:
                 pass
